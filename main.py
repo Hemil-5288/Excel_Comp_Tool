@@ -1,31 +1,3 @@
-"""
-Excel Comparison API (FastAPI)
---------------------------------
-Exposes your existing Excel comparison logic as an HTTP API.
-
-
-Endpoints
-- GET /health -> Simple health check
-- POST /compare -> Upload two Excel files and (optionally) a JSON sheets_config; returns a compared .xlsx file
-
-
-Run locally
-1) pip install -r requirements.txt
-2) uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-
-
-Example cURL
-curl -X POST "http://localhost:8000/compare" \
--F "original_file=@Tax_Report_hemal_patel_28052025 - 4.0.xlsx" \
--F "website_file=@Tax_Report_hemal_patel_21082025.xlsx" \
--F 'sheets_config={"Gain Summary":{"header_row":2,"data_start_row":3},"8938":{"header_row":6,"data_start_row":7},"FBAR":{"header_row":2,"data_start_row":3}}'
-
-
-Notes
-- If sheets_config is omitted, sensible defaults are used.
-- Returns an .xlsx file as a binary response with a timestamped filename.
-"""
-
 import io
 import re
 import json
@@ -35,7 +7,7 @@ from typing import Dict, Any, Optional
 import pandas as pd
 import openpyxl
 from fastapi import FastAPI, File, UploadFile, Form
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 import os
@@ -192,7 +164,7 @@ def compare_excel_with_gain_summary_inline(
     if 'Sheet' in output_wb.sheetnames:
         output_wb.remove(output_wb['Sheet'])
 
-    summary_rows = [["Sheet", "Rows Compared", "Cells Different", "Common Rows"]]
+    summary_rows = [["Sheet", "Rows Compared", "Cells Different", "Common Rows","Only in Original", "Only in Website"]]
 
     def acct_key(v):
         if pd.isna(v) or v is None:
@@ -211,8 +183,20 @@ def compare_excel_with_gain_summary_inline(
             df_web  = pd.read_excel(io.BytesIO(website_bytes),  sheet_name=sheet_name, header=cfg['header_row'] - 1)
 
             common_cols = [c for c in df_orig.columns if c in df_web.columns]
+            
+            only_in_original_count = 0
+            only_in_website_count = 0
+
+
             if not common_cols:
-                summary_rows.append([sheet_name, 0, 0, 0])
+                summary_rows.append([
+                        sheet_name,
+                        rows_compared,
+                        diff_count,
+                        len(common_rows_list),
+                        only_in_original_count,
+                        only_in_website_count
+                    ])
                 continue
 
             df_orig = df_orig[common_cols].copy()
@@ -760,7 +744,46 @@ def compare_excel_with_gain_summary_inline(
     out_bytes = io.BytesIO()
     output_wb.save(out_bytes)
     out_bytes.seek(0)
-    return out_bytes.getvalue()
+    return {
+    "excel_bytes": out_bytes.getvalue(),
+    "results": summary_rows  # structured summary for HTML/JSON 
+    }
+
+def write_html_report(summary_rows):
+    html = """
+    <html>
+    <head>
+        <title>Excel Comparison Report</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
+            th { background: #f2f2f2; }
+        </style>
+    </head>
+    <body>
+        <h1>Excel Comparison Report</h1>
+        <table>
+            <tr>
+                <th>Sheet</th>
+                <th>Rows Compared</th>
+                <th>Cells Different</th>
+                <th>Common Rows</th>
+                <th>Only in Original</th>
+                <th>Only in Website</th>
+            </tr>
+    """
+
+    for row in summary_rows[1:]:  # skip header row
+        html += "<tr>" + "".join(f"<td>{cell}</td>" for cell in row) + "</tr>"
+
+    html += """
+        </table>
+    </body>
+    </html>
+    """
+    return html
+
 
 
 # API Endpoints
@@ -768,45 +791,162 @@ def compare_excel_with_gain_summary_inline(
 def health():
     return {"status": "ok", "time": datetime.utcnow().isoformat() + "Z"}
 
+
+# Excel download
 @app.post("/compare")
 async def compare_endpoint(
     original_file: UploadFile = File(..., description="Original Excel (.xlsx)"),
     website_file: UploadFile = File(..., description="Website Excel (.xlsx)"),
-    sheets_config: Optional[str] = Form(
-        default=None,
-        description="Optional JSON mapping of sheet -> {header_row, data_start_row}",
-    ),
+    sheets_config: Optional[str] = Form(default=None),
 ):
     try:
         parsed_config = None
         if sheets_config and sheets_config.strip():
-          try:
-            parsed_config = json.loads(sheets_config.strip())
-          except Exception:
-            parsed_config = None 
+            try:
+                parsed_config = json.loads(sheets_config.strip())
+            except Exception:
+                parsed_config = None 
 
         original_bytes = await original_file.read()
-        website_bytes = await website_file.read()
+        website_bytes  = await website_file.read()
 
-        result_bytes = compare_excel_with_gain_summary_inline(
+        result = compare_excel_with_gain_summary_inline(
             original_bytes, website_bytes, sheets_config=parsed_config
         )
 
         filename = f"comparison_result_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
         return StreamingResponse(
-            io.BytesIO(result_bytes),
+            io.BytesIO(result["excel_bytes"]),
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             headers={"Content-Disposition": f"attachment; filename={filename}"}
         )
+    except Exception as e:
+        return {"error": str(e)}
 
+
+# JSON summary (for frontend)
+@app.post("/compare/json")
+async def compare_json(
+    original_file: UploadFile = File(...),
+    website_file: UploadFile = File(...),
+    sheets_config: Optional[str] = Form(default=None),
+):
+    try:
+        parsed_config = None
+        if sheets_config and sheets_config.strip():
+            try:
+                parsed_config = json.loads(sheets_config.strip())
+            except Exception:
+                parsed_config = None
+
+        original_bytes = await original_file.read()
+        website_bytes  = await website_file.read()
+
+        result = compare_excel_with_gain_summary_inline(
+            original_bytes, website_bytes, sheets_config=parsed_config
+        )
+
+        return JSONResponse(content={"results": result["results"]})
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# HTML report (optional)
+@app.post("/compare/html")
+async def compare_html(
+    original_file: UploadFile = File(...),
+    website_file: UploadFile = File(...),
+    sheets_config: Optional[str] = Form(default=None),
+):
+    try:
+        parsed_config = None
+        if sheets_config and sheets_config.strip():
+            try:
+                parsed_config = json.loads(sheets_config.strip())
+            except Exception:
+                parsed_config = None
+
+        original_bytes = await original_file.read()
+        website_bytes  = await website_file.read()
+
+        result = compare_excel_with_gain_summary_inline(
+            original_bytes, website_bytes, sheets_config=parsed_config
+        )
+
+        html = write_html_report(result["results"])
+        return HTMLResponse(content=html, media_type="text/html")
     except Exception as e:
         return {"error": str(e)}
     
-import pandas as pd
-from openpyxl import load_workbook, Workbook    
-from openpyxl.styles import PatternFill
-from openpyxl.utils import get_column_letter    
-from fastapi import FastAPI, File, UploadFile, Form
-from fastapi.responses import StreamingResponse
-import io
-import json
+@app.post("/compare/sheets")
+async def compare_sheets(
+    original_file: UploadFile = File(...),
+    website_file: UploadFile = File(...),
+    sheets_config: Optional[str] = Form(default=None)
+):
+    parsed_config = None
+    if sheets_config:
+        try:
+            parsed_config = json.loads(sheets_config)
+        except:
+            parsed_config = None
+
+    original_bytes = await original_file.read()
+    website_bytes  = await website_file.read()
+
+    result = compare_excel_with_gain_summary_inline(original_bytes, website_bytes, sheets_config=parsed_config)
+
+    # Load workbook to check which sheets have differences
+    import openpyxl
+    wb = openpyxl.load_workbook(io.BytesIO(result["excel_bytes"]))
+    sheets_with_diff = []
+
+    for sheet_name in wb.sheetnames:
+        if sheet_name in ["Summary"]:
+            continue
+        ws = wb[sheet_name]
+        has_diff = False
+        for row in ws.iter_rows():
+            for cell in row:
+                if cell.fill.start_color.rgb in ["00FBD9D3", "00CCFFCC"]:  # red/green
+                    has_diff = True
+                    break
+            if has_diff:
+                break
+        if has_diff:
+            sheets_with_diff.append(sheet_name)
+
+    return {"sheets": sheets_with_diff}
+
+
+@app.post("/compare/sheet/diff")
+async def compare_sheet_diff(
+    original_file: UploadFile = File(...),
+    website_file: UploadFile = File(...),
+    sheet_name: str = Form(...),
+    sheets_config: Optional[str] = Form(default=None)
+):
+    parsed_config = None
+    if sheets_config:
+        try:
+            parsed_config = json.loads(sheets_config)
+        except:
+            parsed_config = None
+
+    original_bytes = await original_file.read()
+    website_bytes  = await website_file.read()
+
+    result = compare_excel_with_gain_summary_inline(original_bytes, website_bytes, sheets_config=parsed_config)
+
+    # Load workbook to get the actual sheet differences
+    import openpyxl
+    wb = openpyxl.load_workbook(io.BytesIO(result["excel_bytes"]))
+    if sheet_name not in wb.sheetnames:
+        return {"sheet_name": sheet_name, "different_rows": []}
+
+    ws = wb[sheet_name]
+    rows = []
+    for row in ws.iter_rows(values_only=True):
+        rows.append([cell if cell is not None else "" for cell in row])
+
+    return {"sheet_name": sheet_name, "different_rows": rows}
