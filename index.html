@@ -8,7 +8,7 @@
   body { background:#f8f9fa; font-family: Arial, sans-serif; }
   .container { max-width: 1400px; }
   
-  /* Excel-like table styling */
+  /* CSS */
   .excel-table {
     border-collapse: separate;
     border-spacing: 0;
@@ -37,8 +37,7 @@
   .excel-table tr:nth-child(even) td {
     background: #f9fafb;
   }
-  
-  /* Difference highlighting */
+ 
   .diff-original { background-color: #fecaca !important; }
   .diff-website { background-color: #bbf7d0 !important; }
   .diff-marker { background-color: #fed7d7 !important; font-weight: bold; }
@@ -144,7 +143,7 @@
   .type-original { background-color: #ef4444; }
   .type-website { background-color: #3b82f6; }
 
-  /* Gradient Button Base */
+  /* Button */
 .btn-gradient {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
@@ -188,7 +187,7 @@
   box-shadow: 0 8px 25px rgba(16, 185, 129, 0.35);
 }
 
-/* Spinner inside button */
+/* Spinner button */
 .spinner-border {
   width: 1.2rem;
   height: 1.2rem;
@@ -206,7 +205,7 @@
 <div class="container my-4">
   <h2 class="text-center mb-4">Excel Comparison Tool</h2>
 
-  <!-- Upload section -->
+  <!-- File Upload Section -->
   <div class="card summary-card shadow-sm p-4 mb-4">
     <div class="row g-3">
       <div class="col-md-6">
@@ -225,17 +224,15 @@
           <div class="spinner-border spinner-border-sm text-light position-absolute top-50 end-0 translate-middle-y me-3" id="compareSpinner" style="display:none;"></div>
         </button>
         <button id="downloadBtn" class="btn btn-gradient-download btn-lg position-relative" style="display:none;">
-          <span id="downloadBtnText">⬇️ Download Excel</span>
+          <span id="downloadBtnText">Download Excel</span>
           <div class="spinner-border spinner-border-sm text-light position-absolute top-50 end-0 translate-middle-y me-3" id="downloadSpinner" style="display:none;"></div>
         </button>
       </div>
     </div>
   </div>
 
-  <!-- Summary -->
   <div id="summaryContainer" class="mb-4"></div>
 
-  <!-- Sheet Details -->
   <div id="sheetSection" style="display:none;">
     <div class="card shadow-sm">
       <div class="card-header detail-header">
@@ -243,13 +240,10 @@
       </div>
       
       <div class="card-body">
-        <!-- Statistics Overview -->
         <div id="sheetStats" class="stats-grid mb-4"></div>
 
-        <!-- Tabs -->
         <ul class="nav nav-pills nav-fill mb-0" id="tabs"></ul>
 
-        <!-- Table Container -->
         <div class="tab-content-wrapper">
           <div id="detailsContainer" class="p-3"></div>
         </div>
@@ -264,11 +258,10 @@ let lastFormData = null;
 let sheetDetails = null;
 let currentTab = "different_rows";
 let currentSheetName = "";
-let rawExcelData = null; // Store raw Excel bytes for direct parsing
+let rawExcelData = null;
 
 
-
-// Load Summary
+// Load Summary fuction
 async function loadSummary() {
   const originalFile = document.getElementById("originalFile").files[0];
   const websiteFile  = document.getElementById("websiteFile").files[0];
@@ -278,14 +271,13 @@ async function loadSummary() {
     return; 
   }
 
-  // Show loading state
   document.getElementById("compareBtnText").textContent = "Comparing...";
   document.getElementById("compareSpinner").style.display = "inline-block";
 
   const formData = new FormData();
   formData.append("original_file", originalFile);
   formData.append("website_file", websiteFile);
-  lastFormData = formData; // Store for later use
+  lastFormData = formData;
 
   document.getElementById("summaryContainer").innerHTML =
     '<div class="alert alert-info"><span class="loading-spinner me-2"></span>Comparing files, please wait...</div>';
@@ -306,8 +298,6 @@ async function loadSummary() {
 
     document.getElementById("downloadBtn").style.display = "inline-block";
 
-    
-    // Also store the raw Excel file for later use
     const excelFormData = new FormData();
     excelFormData.append("original_file", originalFile);
     excelFormData.append("website_file", websiteFile);
@@ -323,13 +313,12 @@ async function loadSummary() {
       '<div class="alert alert-danger">Error loading summary: ' + e.message + '</div>';
     console.error(e);
   } finally {
-    // Reset button state
     document.getElementById("compareBtnText").textContent = "Compare Files";
     document.getElementById("compareSpinner").style.display = "none";
   }
 }
 
-//download Excel file
+//download Excel file function
 document.getElementById("downloadBtn").addEventListener("click", async () => {
   if (!lastFormData) {
     alert("Please compare files first!");
@@ -339,7 +328,6 @@ document.getElementById("downloadBtn").addEventListener("click", async () => {
   const btnText = document.getElementById("downloadBtnText");
   const spinner = document.getElementById("downloadSpinner");
 
-  // Show spinner
   btnText.textContent = "Downloading...";
   spinner.style.display = "inline-block";
 
@@ -361,10 +349,9 @@ document.getElementById("downloadBtn").addEventListener("click", async () => {
     a.remove();
     window.URL.revokeObjectURL(url);
   } catch (err) {
-    alert("❌ Error downloading Excel file: " + err.message);
+    alert("Error downloading Excel file: " + err.message);
   } finally {
-    // Hide spinner
-    btnText.textContent = "⬇️ Download Excel";
+    btnText.textContent = "Download Excel";
     spinner.style.display = "none";
   }
 });
@@ -372,7 +359,7 @@ document.getElementById("downloadBtn").addEventListener("click", async () => {
 
 
 
-// Render Summary Table with enhanced styling
+// Render Summary function
 function renderSummary() {
   const container = document.getElementById("summaryContainer");
   container.innerHTML = "";
@@ -396,7 +383,6 @@ function renderSummary() {
   const table = document.createElement("table");
   table.className = "table table-hover mb-0 excel-table";
 
-  // Header
   const thead = document.createElement("thead");
   const headerRow = document.createElement("tr");
   ["Sheet","Rows Compared","Cells Different","Common Rows","Only in Original","Only in Website"]
@@ -410,7 +396,6 @@ function renderSummary() {
 
   const tbody = document.createElement("tbody");
 
-  // Data rows (skip header row)
   summaryData.slice(1).forEach(row => {
     const tr = document.createElement("tr");
     
@@ -418,10 +403,8 @@ function renderSummary() {
       const td = document.createElement("td");
       
       if (idx === 0) {
-        // Sheet name
         td.innerHTML = `<strong>${cell}</strong>`;
       } else if (idx > 1 && !isNaN(cell) && parseInt(cell) > 0 && row[0] !== "Summary") {
-        // Clickable numbers with badges
         const badge = document.createElement("span");
         badge.className = getBadgeClass(idx) + " badge-clickable";
         badge.innerText = cell;
@@ -501,7 +484,7 @@ function renderSheetStatistics() {
         currentTab = stat.key;
         createTabs();
         renderDetails();
-        renderSheetStatistics(); // Update active state
+        renderSheetStatistics();
       };
     }
     
@@ -536,7 +519,7 @@ function getBadgeClass(index) {
   return classes[index] || "badge bg-secondary";
 }
 
-// Load Details of a Sheet
+// Load Details of a Sheet function
 async function loadSheetDetails(sheetName, typeIndex) {
   const originalFile = document.getElementById("originalFile").files[0];
   const websiteFile  = document.getElementById("websiteFile").files[0];
@@ -548,13 +531,11 @@ async function loadSheetDetails(sheetName, typeIndex) {
 
   currentSheetName = sheetName;
   
-  // Show loading
   document.getElementById("detailsContainer").innerHTML =
     '<div class="alert alert-info text-center"><span class="loading-spinner me-2"></span>Loading sheet details...</div>';
   document.getElementById("sheetSection").style.display = "block";
   document.getElementById("sheetTitle").innerText = sheetName;
 
-  // Scroll to sheet section
   document.getElementById("sheetSection").scrollIntoView({ behavior: 'smooth' });
 
   try {
@@ -581,7 +562,7 @@ async function loadSheetDetails(sheetName, typeIndex) {
   }
 }
 
-// Create Enhanced Tabs
+// Create Tabs function
 function createTabs() {
   const tabs = document.getElementById("tabs");
   tabs.innerHTML = "";
@@ -607,7 +588,7 @@ function createTabs() {
       currentTab = key; 
       createTabs(); 
       renderDetails(); 
-      renderSheetStatistics(); // Update active state
+      renderSheetStatistics();
     };
     
     li.appendChild(a);
@@ -615,15 +596,15 @@ function createTabs() {
   });
 }
 
-// Get sheet type to determine column structure
+// Get sheet type function
 function getSheetType(sheetName) {
   if (sheetName === "Gain Summary" || sheetName === "8938" || sheetName === "FBAR") {
-    return "comparison"; // 3-column format (Original | Website | Diff)
+    return "comparison";
   }
-  return "single"; // Single column format
+  return "single"; 
 }
 
-// Render Excel-like Details Table
+// Render Excel Details Table function
 function renderDetails() {
   const container = document.getElementById("detailsContainer");
   container.innerHTML = "";
@@ -637,14 +618,12 @@ function renderDetails() {
 
   const sheetType = getSheetType(currentSheetName);
   
-  // Create table wrapper
   const tableWrapper = document.createElement("div");
   tableWrapper.className = "table-responsive";
 
   const table = document.createElement("table");
   table.className = "excel-table w-100";
 
-  // Determine if this is comparison format or single format
   if (sheetType === "comparison" && rows.length > 0) {
     renderComparisonTable(table, rows);
   } else {
@@ -653,7 +632,6 @@ function renderDetails() {
 
   tableWrapper.appendChild(table);
   
-  // Add summary info
   const info = document.createElement("div");
   info.className = "alert alert-light mt-3 text-center";
   const dataRowCount = Math.max(0, rows.length - 1);
@@ -710,21 +688,17 @@ async function downloadFullExcel() {
     a.remove();
     window.URL.revokeObjectURL(url);
   } catch (e) {
-    alert("❌ Error downloading Excel file");
+    alert("Error downloading Excel file");
     console.error(e);
   }
 }
 
 function renderComparisonTable(table, rows) {
   if (rows.length === 0) return;
-
-  // For comparison sheets (Gain Summary, 8938, FBAR)
-  // Structure: [Col1 (Original), Col1 (Website), Col1 (Diff), Col2 (Original), Col2 (Website), Col2 (Diff), ...]
   
   const firstRow = rows[0];
-  const columnCount = Math.floor(firstRow.length / 3); // Each logical column has 3 physical columns
+  const columnCount = Math.floor(firstRow.length / 3); 
   
-  // Create column group headers
   const thead = document.createElement("thead");
   
   // Main headers row
@@ -733,12 +707,11 @@ function renderComparisonTable(table, rows) {
     const th = document.createElement("th");
     th.colSpan = 3;
     th.className = "column-header-group";
-    th.innerText = getColumnName(firstRow[i * 3]); // Extract column name from first sub-column
+    th.innerText = getColumnName(firstRow[i * 3]);
     mainHeaderRow.appendChild(th);
   }
   thead.appendChild(mainHeaderRow);
   
-  // Sub-headers row
   const subHeaderRow = document.createElement("tr");
   for (let i = 0; i < columnCount; i++) {
     ["Original", "Website", "Difference"].forEach(subHeader => {
@@ -751,7 +724,6 @@ function renderComparisonTable(table, rows) {
   
   table.appendChild(thead);
 
-  // Data rows
   const tbody = document.createElement("tbody");
   rows.slice(1).forEach((row, rowIndex) => {
     const tr = document.createElement("tr");
@@ -761,7 +733,6 @@ function renderComparisonTable(table, rows) {
       const websiteVal = row[i * 3 + 1] || "";
       const diffVal = row[i * 3 + 2] || "";
       
-      // Original column
       const tdOrig = document.createElement("td");
       tdOrig.innerText = originalVal;
       if (diffVal && diffVal !== "" && diffVal !== "DIFF") {
@@ -773,7 +744,6 @@ function renderComparisonTable(table, rows) {
       }
       tr.appendChild(tdOrig);
       
-      // Website column
       const tdWeb = document.createElement("td");
       tdWeb.innerText = websiteVal;
       if (diffVal && diffVal !== "" && diffVal !== "DIFF") {
@@ -785,7 +755,6 @@ function renderComparisonTable(table, rows) {
       }
       tr.appendChild(tdWeb);
       
-      // Difference column
       const tdDiff = document.createElement("td");
       tdDiff.innerText = diffVal;
       if (diffVal && diffVal !== "" && diffVal !== "DIFF") {
@@ -803,11 +772,9 @@ function renderComparisonTable(table, rows) {
 function renderSingleTable(table, rows) {
   if (rows.length === 0) return;
 
-  // For single format sheets
   const thead = document.createElement("thead");
   const headerRow = document.createElement("tr");
   
-  // Use first row as headers, but exclude the last column (marker)
   const headers = rows[0].slice(0, -1);
   headers.forEach((h, index) => {
     const th = document.createElement("th");
@@ -818,18 +785,14 @@ function renderSingleTable(table, rows) {
   thead.appendChild(headerRow);
   table.appendChild(thead);
 
-  // Data rows (skip first row as it's header, exclude last marker column)
   const tbody = document.createElement("tbody");
   rows.slice(1).forEach((row, rowIndex) => {
     const tr = document.createElement("tr");
-    
-    // Exclude the last column (marker column)
     const dataColumns = row.slice(0, -1);
     dataColumns.forEach(cell => {
       const td = document.createElement("td");
       td.innerText = cell || "";
       
-      // Apply styling based on current tab
       if (currentTab === "only_in_original_rows") {
         td.className = "only-original";
       } else if (currentTab === "only_in_website_rows") {
@@ -848,16 +811,14 @@ function renderSingleTable(table, rows) {
 }
 
 function getColumnName(fullColumnName) {
-  // Extract base column name from "(Original)" or "(Website)" or "(Diff)" suffix
   if (typeof fullColumnName === 'string') {
     return fullColumnName.replace(/ \((Original|Website|Diff)\)$/, '');
   }
   return fullColumnName;
 }
 
-// Initialize page
+// Initialize page function
 document.addEventListener('DOMContentLoaded', function() {
-  // Add drag and drop functionality
   const fileInputs = document.querySelectorAll('input[type="file"]');
   fileInputs.forEach(input => {
     const parent = input.parentElement;
