@@ -1,187 +1,887 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Excel Comparison Tool</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>
-    body { background-color: #f8f9fa; font-family: Arial, sans-serif; }
-    .container { max-width: 800px; }
-    .card { border-radius: 8px; }
-    .btn-primary, .btn-success { font-weight: 500; }
-    #status { font-size: 0.95rem; }
-    #report { margin-top: 20px; }
-    .highlight { background-color: #fff3cd; } /* Highlight differences */
-  </style>
+<meta charset="UTF-8">
+<title>Excel Comparison Tool</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+  body { background:#f8f9fa; font-family: Arial, sans-serif; }
+  .container { max-width: 1400px; }
+  
+  /* Excel-like table styling */
+  .excel-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 2px solid #d1d5db;
+    background: white;
+  }
+  
+  .excel-table th {
+    background: #f3f4f6;
+    border: 1px solid #d1d5db;
+    padding: 8px 12px;
+    font-weight: 600;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  
+  .excel-table td {
+    border: 1px solid #e5e7eb;
+    padding: 8px 12px;
+    text-align: center;
+    background: white;
+  }
+  
+  .excel-table tr:nth-child(even) td {
+    background: #f9fafb;
+  }
+  
+  /* Difference highlighting */
+  .diff-original { background-color: #fecaca !important; }
+  .diff-website { background-color: #bbf7d0 !important; }
+  .diff-marker { background-color: #fed7d7 !important; font-weight: bold; }
+  .only-original { background-color: #fca5a5 !important; }
+  .only-website { background-color: #86efac !important; }
+  
+  .clickable { color:#0d6efd; cursor:pointer; text-decoration: underline; }
+  .clickable:hover { background-color: #e3f2fd; }
+  
+  .badge-clickable { 
+    cursor: pointer; 
+    transition: all 0.2s;
+    font-size: 0.9em;
+    padding: 0.5em 0.8em;
+  }
+  .badge-clickable:hover { transform: scale(1.1); }
+  
+  .summary-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+  }
+  
+  .detail-header {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    border-radius: 10px 10px 0 0;
+  }
+  
+  .tab-content-wrapper {
+    max-height: 700px;
+    overflow: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 0 0 8px 8px;
+    background: white;
+  }
+  
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  
+  .stat-card {
+    background: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    text-align: center;
+    transition: transform 0.2s;
+    border: 2px solid transparent;
+  }
+  
+  .stat-card:hover {
+    transform: translateY(-5px);
+    border-color: #0d6efd;
+  }
+  
+  .stat-card.active {
+    border-color: #0d6efd;
+    box-shadow: 0 4px 20px rgba(13, 110, 253, 0.3);
+  }
+  
+  .stat-number {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+  }
+  
+  .loading-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  
+  .column-header-group {
+    background: #e5e7eb;
+    font-weight: bold;
+    text-align: center;
+    border: 2px solid #d1d5db;
+  }
+  
+  .data-type-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 8px;
+  }
+  
+  .type-common { background-color: #10b981; }
+  .type-different { background-color: #f59e0b; }
+  .type-original { background-color: #ef4444; }
+  .type-website { background-color: #3b82f6; }
+
+  /* Gradient Button Base */
+.btn-gradient {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-weight: 600;
+  font-size: 1.15rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  border: none;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-gradient-download {
+  background: linear-gradient(135deg, #10b981 0%, #3ac08d 100%);
+  color: white;
+  font-weight: 600;
+  font-size: 1.15rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  border: none;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Hover Animation */
+.btn-gradient:hover {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.35);
+}
+
+.btn-gradient-download:hover {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.35);
+}
+
+/* Spinner inside button */
+.spinner-border {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+/* Disabled Button style */
+.btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+</style>
 </head>
 <body>
-<div class="container my-5">
+<div class="container my-4">
   <h2 class="text-center mb-4">Excel Comparison Tool</h2>
-  <div class="card shadow-sm p-4">
-    <form id="excelForm">
-      <div class="mb-3">
+
+  <!-- Upload section -->
+  <div class="card summary-card shadow-sm p-4 mb-4">
+    <div class="row g-3">
+      <div class="col-md-6">
         <label class="form-label">Original Excel File</label>
-        <input type="file" class="form-control" id="originalFile" required>
+        <input type="file" class="form-control" id="originalFile" accept=".xlsx,.xls">
       </div>
-      <div class="mb-3">
+      <div class="col-md-6">
         <label class="form-label">Website Excel File</label>
-        <input type="file" class="form-control" id="websiteFile" required>
+        <input type="file" class="form-control" id="websiteFile" accept=".xlsx,.xls">
       </div>
-      <button type="submit" id="compareBtn" class="btn btn-primary w-100">Compare Files</button>
-    </form>
-    <div id="status" class="mt-3"></div>
-    <div id="report" class="mt-4"></div>
-    <div id="downloadSection" class="mt-3" style="display:none;">
-      <button id="downloadBtn" class="btn btn-success w-100">Download Result Excel</button>
+    </div>
+    <div class="card summary-card shadow-sm p-4 mb-4">
+      <div class="d-flex gap-3 mt-4 justify-content-center flex-wrap">
+        <button class="btn btn-gradient btn-lg position-relative" id="compareBtn" onclick="loadSummary()">
+          <span id="compareBtnText">Compare Files</span>
+          <div class="spinner-border spinner-border-sm text-light position-absolute top-50 end-0 translate-middle-y me-3" id="compareSpinner" style="display:none;"></div>
+        </button>
+        <button id="downloadBtn" class="btn btn-gradient-download btn-lg position-relative" style="display:none;">
+          <span id="downloadBtnText">⬇️ Download Excel</span>
+          <div class="spinner-border spinner-border-sm text-light position-absolute top-50 end-0 translate-middle-y me-3" id="downloadSpinner" style="display:none;"></div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary -->
+  <div id="summaryContainer" class="mb-4"></div>
+
+  <!-- Sheet Details -->
+  <div id="sheetSection" style="display:none;">
+    <div class="card shadow-sm">
+      <div class="card-header detail-header">
+        <h4 class="mb-0 text-center">Sheet Details: <span id="sheetTitle"></span></h4>
+      </div>
+      
+      <div class="card-body">
+        <!-- Statistics Overview -->
+        <div id="sheetStats" class="stats-grid mb-4"></div>
+
+        <!-- Tabs -->
+        <ul class="nav nav-pills nav-fill mb-0" id="tabs"></ul>
+
+        <!-- Table Container -->
+        <div class="tab-content-wrapper">
+          <div id="detailsContainer" class="p-3"></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+let summaryData = null;
 let lastFormData = null;
+let sheetDetails = null;
+let currentTab = "different_rows";
+let currentSheetName = "";
+let rawExcelData = null; // Store raw Excel bytes for direct parsing
 
-document.getElementById('excelForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const originalFile = document.getElementById('originalFile').files[0];
-  const websiteFile  = document.getElementById('websiteFile').files[0];
 
-  if (!originalFile || !websiteFile) return alert("Please select both files!");
+
+// Load Summary
+async function loadSummary() {
+  const originalFile = document.getElementById("originalFile").files[0];
+  const websiteFile  = document.getElementById("websiteFile").files[0];
+  
+  if(!originalFile || !websiteFile){ 
+    alert("Please select both Excel files"); 
+    return; 
+  }
+
+  // Show loading state
+  document.getElementById("compareBtnText").textContent = "Comparing...";
+  document.getElementById("compareSpinner").style.display = "inline-block";
 
   const formData = new FormData();
-  formData.append('original_file', originalFile);
-  formData.append('website_file', websiteFile);
-  lastFormData = formData;
+  formData.append("original_file", originalFile);
+  formData.append("website_file", websiteFile);
+  lastFormData = formData; // Store for later use
 
-  const statusDiv = document.getElementById('status');
-  const reportDiv = document.getElementById('report');
-  const downloadSection = document.getElementById('downloadSection');
-  const compareBtn = document.getElementById('compareBtn');
-
-  const originalCompareText = compareBtn.innerHTML;
-  compareBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Comparing...`;
-  compareBtn.disabled = true;
-
-  statusDiv.innerHTML = '<div class="alert alert-info">Comparing files...</div>';
-  reportDiv.innerHTML = "";
-  downloadSection.style.display = "none";
+  document.getElementById("summaryContainer").innerHTML =
+    '<div class="alert alert-info"><span class="loading-spinner me-2"></span>Comparing files, please wait...</div>';
 
   try {
-    // Call API to get only sheet names with differences
-    const response = await fetch('http://127.0.0.1:8000/compare/sheets', {
-      method: 'POST',
-      body: formData
+    const res = await fetch("http://127.0.0.1:8000/compare/json", { 
+      method: "POST", 
+      body: formData 
     });
-    const data = await response.json();
-
-    if (!data || !data.sheets || data.sheets.length === 0) {
-      statusDiv.innerHTML = '<div class="alert alert-warning">No differences found!</div>';
-      return;
+    const data = await res.json();
+    
+    if (data.error) {
+      throw new Error(data.error);
     }
+    
+    summaryData = data.results;
+    renderSummary();
 
-    // Show clickable sheets
-    let html = '<h5>Sheets with differences:</h5><ul class="list-group">';
-    data.sheets.forEach(sheet => {
-      html += `<li class="list-group-item"><a href="#" class="sheet-link" data-sheet="${sheet}">${sheet}</a></li>`;
+    document.getElementById("downloadBtn").style.display = "inline-block";
+
+    
+    // Also store the raw Excel file for later use
+    const excelFormData = new FormData();
+    excelFormData.append("original_file", originalFile);
+    excelFormData.append("website_file", websiteFile);
+    
+    const excelRes = await fetch("http://127.0.0.1:8000/compare", { 
+      method: "POST", 
+      body: excelFormData 
     });
-    html += '</ul>';
-    reportDiv.innerHTML = html;
-    statusDiv.innerHTML = '<div class="alert alert-success">Comparison complete!</div>';
-    downloadSection.style.display = "block";
-
-    // Add click event to open sheet differences
-    document.querySelectorAll(".sheet-link").forEach(link => {
-      link.addEventListener("click", async (e) => {
-        e.preventDefault();
-        const sheet = e.target.dataset.sheet;
-
-        // Open new window immediately
-        const newWin = window.open("", "_blank");
-        if (!newWin) return alert("Popup blocked! Please allow popups for this site.");
-        newWin.document.write(`<p class="text-center">Loading ${sheet} differences...</p>`);
-
-        const sheetForm = new FormData();
-        sheetForm.append('original_file', originalFile);
-        sheetForm.append('website_file', websiteFile);
-        sheetForm.append('sheet_name', sheet);
-
-        try {
-          const detailResponse = await fetch('http://127.0.0.1:8000/compare/sheet/diff', {
-            method: 'POST',
-            body: sheetForm
-          });
-          const detailData = await detailResponse.json();
-          const sheetRows = detailData.different_rows || [];
-
-          let detailHtml = `<html><head><title>${sheet} Differences</title>`;
-          detailHtml += `<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">`;
-          detailHtml += `<style>.highlight{background-color:#fff3cd;}</style></head><body>`;
-          detailHtml += `<div class="container my-4"><h3>${sheet} - All Different Rows</h3>`;
-
-          if(sheetRows.length > 0){
-            detailHtml += `<table class="table table-bordered table-striped"><thead><tr>`;
-            detailHtml += sheetRows[0].map(h=>`<th>${h}</th>`).join("");
-            detailHtml += `</tr></thead><tbody>`;
-            for(let i=1;i<sheetRows.length;i++){
-              detailHtml += `<tr>`;
-              for(let j=0;j<sheetRows[i].length;j++){
-                detailHtml += `<td class="highlight">${sheetRows[i][j]}</td>`;
-              }
-              detailHtml += `</tr>`;
-            }
-            detailHtml += `</tbody></table>`;
-          } else {
-            detailHtml += `<div class="alert alert-info">No differences found in this sheet.</div>`;
-          }
-          detailHtml += `</div></body></html>`;
-
-          newWin.document.open();
-          newWin.document.write(detailHtml);
-          newWin.document.close();
-
-        } catch(err) {
-          newWin.document.write(`<div class="alert alert-danger">Error loading sheet: ${err}</div>`);
-        }
-      });
-    });
-
-  } catch (err) {
-    statusDiv.innerHTML = `<div class="alert alert-danger">Error: ${err}</div>`;
+    rawExcelData = await excelRes.blob();
+    
+  } catch(e){
+    document.getElementById("summaryContainer").innerHTML =
+      '<div class="alert alert-danger">Error loading summary: ' + e.message + '</div>';
+    console.error(e);
   } finally {
-    compareBtn.innerHTML = originalCompareText;
-    compareBtn.disabled = false;
+    // Reset button state
+    document.getElementById("compareBtnText").textContent = "Compare Files";
+    document.getElementById("compareSpinner").style.display = "none";
+  }
+}
+
+//download Excel file
+document.getElementById("downloadBtn").addEventListener("click", async () => {
+  if (!lastFormData) {
+    alert("Please compare files first!");
+    return;
+  }
+
+  const btnText = document.getElementById("downloadBtnText");
+  const spinner = document.getElementById("downloadSpinner");
+
+  // Show spinner
+  btnText.textContent = "Downloading...";
+  spinner.style.display = "inline-block";
+
+  try {
+    const res = await fetch("http://127.0.0.1:8000/compare/excel", {
+      method: "POST",
+      body: lastFormData
+    });
+
+    if (!res.ok) throw new Error(`Server error ${res.status}`);
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "Comparison_Result.xlsx";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    alert("❌ Error downloading Excel file: " + err.message);
+  } finally {
+    // Hide spinner
+    btnText.textContent = "⬇️ Download Excel";
+    spinner.style.display = "none";
   }
 });
 
-// Download Excel
-document.getElementById('downloadBtn').addEventListener('click', async () => {
-  if (!lastFormData) return alert("Please run a comparison first.");
-  const downloadBtn = document.getElementById('downloadBtn');
-  const originalText = downloadBtn.innerHTML;
-  downloadBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Preparing file...`;
-  downloadBtn.disabled = true;
+
+
+
+// Render Summary Table with enhanced styling
+function renderSummary() {
+  const container = document.getElementById("summaryContainer");
+  container.innerHTML = "";
+  
+  if(!summaryData || summaryData.length <= 1) {
+    container.innerHTML = '<div class="alert alert-warning">No comparison data available.</div>';
+    return;
+  }
+
+  const card = document.createElement("div");
+  card.className = "card shadow-sm";
+  
+  const cardHeader = document.createElement("div");
+  cardHeader.className = "card-header bg-primary text-white";
+  cardHeader.innerHTML = "<h5 class='mb-0'>Comparison Summary</h5>";
+  card.appendChild(cardHeader);
+  
+  const cardBody = document.createElement("div");
+  cardBody.className = "card-body p-0";
+
+  const table = document.createElement("table");
+  table.className = "table table-hover mb-0 excel-table";
+
+  // Header
+  const thead = document.createElement("thead");
+  const headerRow = document.createElement("tr");
+  ["Sheet","Rows Compared","Cells Different","Common Rows","Only in Original","Only in Website"]
+    .forEach(h => {
+      const th = document.createElement("th");
+      th.innerText = h;
+      headerRow.appendChild(th);
+    });
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+
+  // Data rows (skip header row)
+  summaryData.slice(1).forEach(row => {
+    const tr = document.createElement("tr");
+    
+    row.forEach((cell, idx) => {
+      const td = document.createElement("td");
+      
+      if (idx === 0) {
+        // Sheet name
+        td.innerHTML = `<strong>${cell}</strong>`;
+      } else if (idx > 1 && !isNaN(cell) && parseInt(cell) > 0 && row[0] !== "Summary") {
+        // Clickable numbers with badges
+        const badge = document.createElement("span");
+        badge.className = getBadgeClass(idx) + " badge-clickable";
+        badge.innerText = cell;
+        badge.onclick = () => loadSheetDetails(row[0], idx);
+        badge.title = `Click to view ${getCategoryName(idx)} for ${row[0]}`;
+        td.appendChild(badge);
+      } else {
+        td.innerText = cell;
+      }
+      
+      tr.appendChild(td);
+    });
+    
+    tbody.appendChild(tr);
+  });
+  
+  table.appendChild(tbody);
+  cardBody.appendChild(table);
+  card.appendChild(cardBody);
+  container.appendChild(card);
+}
+
+function getSheetStatistics(data) {
+  const stats = [
+    {
+      title: "Different Rows", 
+      count: data.different_rows?.length || 0,
+      color: "#f59e0b",
+      icon: "⚠",
+      key: "different_rows"
+    },
+    {
+      title: "Common Rows",
+      count: data.common_rows?.length || 0,
+      color: "#10b981",
+      icon: "✓",
+      key: "common_rows"
+    },
+    {
+      title: "Only in Original",
+      count: data.only_in_original_rows?.length || 0,
+      color: "#ef4444", 
+      icon: "◀",
+      key: "only_in_original_rows"
+    },
+    {
+      title: "Only in Website",
+      count: data.only_in_website_rows?.length || 0,
+      color: "#3b82f6",
+      icon: "▶",
+      key: "only_in_website_rows"
+    }
+  ];
+  
+  return stats;
+}
+
+function renderSheetStatistics() {
+  const container = document.getElementById("sheetStats");
+  container.innerHTML = "";
+  
+  if (!sheetDetails) return;
+  
+  const stats = getSheetStatistics(sheetDetails);
+  
+  stats.forEach((stat) => {
+    const statCard = document.createElement("div");
+    statCard.className = "stat-card";
+    statCard.style.cursor = stat.count > 0 ? "pointer" : "default";
+    
+    if (currentTab === stat.key) {
+      statCard.classList.add("active");
+    }
+    
+    if (stat.count > 0) {
+      statCard.onclick = () => {
+        currentTab = stat.key;
+        createTabs();
+        renderDetails();
+        renderSheetStatistics(); // Update active state
+      };
+    }
+    
+    statCard.innerHTML = `
+      <div class="stat-number" style="color: ${stat.color};">
+        ${stat.icon} ${stat.count}
+      </div>
+      <div class="text-muted">${stat.title}</div>
+    `;
+    
+    container.appendChild(statCard);
+  });
+}
+
+function getCategoryName(index) {
+  const categories = ["", "", "different rows", "common rows", "rows only in original", "rows only in website"];
+  return categories[index] || "data";
+}
+
+function getTabKey(index) {
+  const mapping = {
+    2: "different_rows", 
+    3: "common_rows", 
+    4: "only_in_original_rows", 
+    5: "only_in_website_rows"
+  };
+  return mapping[index] || "different_rows";
+}
+
+function getBadgeClass(index) {
+  const classes = ["", "", "badge bg-warning", "badge bg-success", "badge bg-danger", "badge bg-info"];
+  return classes[index] || "badge bg-secondary";
+}
+
+// Load Details of a Sheet
+async function loadSheetDetails(sheetName, typeIndex) {
+  const originalFile = document.getElementById("originalFile").files[0];
+  const websiteFile  = document.getElementById("websiteFile").files[0];
+
+  const formData = new FormData();
+  formData.append("original_file", originalFile);
+  formData.append("website_file", websiteFile);
+  formData.append("sheet_name", sheetName);
+
+  currentSheetName = sheetName;
+  
+  // Show loading
+  document.getElementById("detailsContainer").innerHTML =
+    '<div class="alert alert-info text-center"><span class="loading-spinner me-2"></span>Loading sheet details...</div>';
+  document.getElementById("sheetSection").style.display = "block";
+  document.getElementById("sheetTitle").innerText = sheetName;
+
+  // Scroll to sheet section
+  document.getElementById("sheetSection").scrollIntoView({ behavior: 'smooth' });
 
   try {
-    const response = await fetch('http://127.0.0.1:8000/compare', {
-      method: 'POST',
-      body: lastFormData
+    const res = await fetch("http://127.0.0.1:8000/compare/sheet/diff", { 
+      method: "POST", 
+      body: formData 
     });
-    const blob = await response.blob();
+    const data = await res.json();
+    
+    if (data.error) {
+      throw new Error(data.error);
+    }
+    
+    sheetDetails = data;
+    currentTab = getTabKey(typeIndex);
+
+    renderSheetStatistics();
+    createTabs();
+    renderDetails();
+  } catch(e){
+    document.getElementById("detailsContainer").innerHTML =
+      '<div class="alert alert-danger">Error loading sheet data: ' + e.message + '</div>';
+    console.error(e);
+  }
+}
+
+// Create Enhanced Tabs
+function createTabs() {
+  const tabs = document.getElementById("tabs");
+  tabs.innerHTML = "";
+  
+  const categories = {
+    different_rows: { label: "Different Rows", icon: "⚠", class: "btn-outline-warning" },
+    common_rows: { label: "Common Rows", icon: "✓", class: "btn-outline-success" },
+    only_in_original_rows: { label: "Only in Original", icon: "◀", class: "btn-outline-danger" },
+    only_in_website_rows: { label: "Only in Website", icon: "▶", class: "btn-outline-info" }
+  };
+
+  Object.entries(categories).forEach(([key, config]) => {
+    const count = sheetDetails[key]?.length || 0;
+    const li = document.createElement("li");
+    li.className = "nav-item";
+    
+    const a = document.createElement("a");
+    a.className = `nav-link ${config.class} ${key === currentTab ? 'active' : ''}`;
+    a.innerHTML = `${config.icon} ${config.label} <span class="badge bg-secondary ms-1">${count}</span>`;
+    a.href = "#";
+    a.onclick = (e) => { 
+      e.preventDefault(); 
+      currentTab = key; 
+      createTabs(); 
+      renderDetails(); 
+      renderSheetStatistics(); // Update active state
+    };
+    
+    li.appendChild(a);
+    tabs.appendChild(li);
+  });
+}
+
+// Get sheet type to determine column structure
+function getSheetType(sheetName) {
+  if (sheetName === "Gain Summary" || sheetName === "8938" || sheetName === "FBAR") {
+    return "comparison"; // 3-column format (Original | Website | Diff)
+  }
+  return "single"; // Single column format
+}
+
+// Render Excel-like Details Table
+function renderDetails() {
+  const container = document.getElementById("detailsContainer");
+  container.innerHTML = "";
+  
+  const rows = sheetDetails[currentTab] || [];
+
+  if (rows.length === 0) {
+    container.innerHTML = '<div class="alert alert-warning text-center">No rows found for this category.</div>';
+    return;
+  }
+
+  const sheetType = getSheetType(currentSheetName);
+  
+  // Create table wrapper
+  const tableWrapper = document.createElement("div");
+  tableWrapper.className = "table-responsive";
+
+  const table = document.createElement("table");
+  table.className = "excel-table w-100";
+
+  // Determine if this is comparison format or single format
+  if (sheetType === "comparison" && rows.length > 0) {
+    renderComparisonTable(table, rows);
+  } else {
+    renderSingleTable(table, rows);
+  }
+
+  tableWrapper.appendChild(table);
+  
+  // Add summary info
+  const info = document.createElement("div");
+  info.className = "alert alert-light mt-3 text-center";
+  const dataRowCount = Math.max(0, rows.length - 1);
+  info.innerHTML = `
+    <span class="data-type-indicator type-${getCurrentTypeClass()}"></span>
+    <strong>Showing ${dataRowCount} rows</strong> from <em>${currentSheetName}</em> sheet
+    <small class="d-block mt-1 text-muted">Category: ${getCurrentCategoryLabel()}</small>
+  `;
+  
+  container.appendChild(tableWrapper);
+  container.appendChild(info);
+}
+
+function getCurrentTypeClass() {
+  const mapping = {
+    common_rows: "common",
+    different_rows: "different",
+    only_in_original_rows: "original", 
+    only_in_website_rows: "website"
+  };
+  return mapping[currentTab] || "common";
+}
+
+function getCurrentCategoryLabel() {
+  const mapping = {
+    common_rows: "Rows that match between both files",
+    different_rows: "Rows with differences between files",
+    only_in_original_rows: "Rows that exist only in the original file",
+    only_in_website_rows: "Rows that exist only in the website file"
+  };
+  return mapping[currentTab] || "Data";
+}
+
+async function downloadFullExcel() {
+  const originalFile = document.getElementById("originalFile").files[0];
+  const websiteFile  = document.getElementById("websiteFile").files[0];
+  if(!originalFile || !websiteFile){ alert("Please select both files"); return; }
+
+  const formData = new FormData();
+  formData.append("original_file", originalFile);
+  formData.append("website_file", websiteFile);
+
+  try {
+    const res = await fetch("http://127.0.0.1:8000/compare/excel", { method:"POST", body:formData });
+    if (!res.ok) throw new Error("Failed to generate Excel");
+
+    const blob = await res.blob();
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `comparison_result_${Date.now()}.xlsx`;
+    a.download = "Comparison_Result.xlsx";
     document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
+    a.remove();
     window.URL.revokeObjectURL(url);
-  } catch (err) {
-    alert("Download error: " + err);
-  } finally {
-    downloadBtn.innerHTML = originalText;
-    downloadBtn.disabled = false;
+  } catch (e) {
+    alert("❌ Error downloading Excel file");
+    console.error(e);
   }
+}
+
+function renderComparisonTable(table, rows) {
+  if (rows.length === 0) return;
+
+  // For comparison sheets (Gain Summary, 8938, FBAR)
+  // Structure: [Col1 (Original), Col1 (Website), Col1 (Diff), Col2 (Original), Col2 (Website), Col2 (Diff), ...]
+  
+  const firstRow = rows[0];
+  const columnCount = Math.floor(firstRow.length / 3); // Each logical column has 3 physical columns
+  
+  // Create column group headers
+  const thead = document.createElement("thead");
+  
+  // Main headers row
+  const mainHeaderRow = document.createElement("tr");
+  for (let i = 0; i < columnCount; i++) {
+    const th = document.createElement("th");
+    th.colSpan = 3;
+    th.className = "column-header-group";
+    th.innerText = getColumnName(firstRow[i * 3]); // Extract column name from first sub-column
+    mainHeaderRow.appendChild(th);
+  }
+  thead.appendChild(mainHeaderRow);
+  
+  // Sub-headers row
+  const subHeaderRow = document.createElement("tr");
+  for (let i = 0; i < columnCount; i++) {
+    ["Original", "Website", "Difference"].forEach(subHeader => {
+      const th = document.createElement("th");
+      th.innerText = subHeader;
+      subHeaderRow.appendChild(th);
+    });
+  }
+  thead.appendChild(subHeaderRow);
+  
+  table.appendChild(thead);
+
+  // Data rows
+  const tbody = document.createElement("tbody");
+  rows.slice(1).forEach((row, rowIndex) => {
+    const tr = document.createElement("tr");
+    
+    for (let i = 0; i < columnCount; i++) {
+      const originalVal = row[i * 3] || "";
+      const websiteVal = row[i * 3 + 1] || "";
+      const diffVal = row[i * 3 + 2] || "";
+      
+      // Original column
+      const tdOrig = document.createElement("td");
+      tdOrig.innerText = originalVal;
+      if (diffVal && diffVal !== "" && diffVal !== "DIFF") {
+        if (diffVal === "Only in Original") {
+          tdOrig.className = "only-original";
+        } else {
+          tdOrig.className = "diff-original";
+        }
+      }
+      tr.appendChild(tdOrig);
+      
+      // Website column
+      const tdWeb = document.createElement("td");
+      tdWeb.innerText = websiteVal;
+      if (diffVal && diffVal !== "" && diffVal !== "DIFF") {
+        if (diffVal === "Only in Website") {
+          tdWeb.className = "only-website";
+        } else {
+          tdWeb.className = "diff-website";
+        }
+      }
+      tr.appendChild(tdWeb);
+      
+      // Difference column
+      const tdDiff = document.createElement("td");
+      tdDiff.innerText = diffVal;
+      if (diffVal && diffVal !== "" && diffVal !== "DIFF") {
+        tdDiff.className = "diff-marker";
+      }
+      tr.appendChild(tdDiff);
+    }
+    
+    tbody.appendChild(tr);
+  });
+  
+  table.appendChild(tbody);
+}
+
+function renderSingleTable(table, rows) {
+  if (rows.length === 0) return;
+
+  // For single format sheets
+  const thead = document.createElement("thead");
+  const headerRow = document.createElement("tr");
+  
+  // Use first row as headers, but exclude the last column (marker)
+  const headers = rows[0].slice(0, -1);
+  headers.forEach((h, index) => {
+    const th = document.createElement("th");
+    th.innerText = h || `Column ${index + 1}`;
+    headerRow.appendChild(th);
+  });
+  
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  // Data rows (skip first row as it's header, exclude last marker column)
+  const tbody = document.createElement("tbody");
+  rows.slice(1).forEach((row, rowIndex) => {
+    const tr = document.createElement("tr");
+    
+    // Exclude the last column (marker column)
+    const dataColumns = row.slice(0, -1);
+    dataColumns.forEach(cell => {
+      const td = document.createElement("td");
+      td.innerText = cell || "";
+      
+      // Apply styling based on current tab
+      if (currentTab === "only_in_original_rows") {
+        td.className = "only-original";
+      } else if (currentTab === "only_in_website_rows") {
+        td.className = "only-website";
+      } else if (currentTab === "different_rows") {
+        td.className = "diff-original";
+      }
+      
+      tr.appendChild(td);
+    });
+    
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+}
+
+function getColumnName(fullColumnName) {
+  // Extract base column name from "(Original)" or "(Website)" or "(Diff)" suffix
+  if (typeof fullColumnName === 'string') {
+    return fullColumnName.replace(/ \((Original|Website|Diff)\)$/, '');
+  }
+  return fullColumnName;
+}
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+  // Add drag and drop functionality
+  const fileInputs = document.querySelectorAll('input[type="file"]');
+  fileInputs.forEach(input => {
+    const parent = input.parentElement;
+    
+    parent.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      parent.style.backgroundColor = '#e3f2fd';
+    });
+    
+    parent.addEventListener('dragleave', (e) => {
+      e.preventDefault(); 
+      parent.style.backgroundColor = '';
+    });
+    
+    parent.addEventListener('drop', (e) => {
+      e.preventDefault();
+      parent.style.backgroundColor = '';
+      
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        input.files = files;
+      }
+    });
+  });
 });
 </script>
 </body>
